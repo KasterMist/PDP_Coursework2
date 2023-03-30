@@ -5,8 +5,11 @@
 #include <sys/time.h>
 #include <time.h>
 #include <omp.h>
+#include <mpi.h>
 #include "simulation_configuration.h"
 #include "simulation_support.h"
+
+
 
 // Height of a fuel pellet in meters (they are 40mm by 40mm by 2.5mm)
 #define HEIGHT_FUEL_PELLET_M 0.0025
@@ -19,6 +22,16 @@
 // Number of nanoseconds in a second
 #define NS_AS_SEC 1e-9
 
+struct ProcConfig{
+  int size;
+  int rank;
+  MPI_Comm comm;
+  int neutron_start;
+  int neutron_end;
+  int reactor_x_start;
+  int reactor_x_end;
+};
+
 // The neutrons that are currently moving throughout the reactor core
 struct neutron_struct * neutrons;
 // Indexes of empty neutrons (i.e. those inactive) that can be used
@@ -28,10 +41,13 @@ unsigned long int currentNeutronIndex=0;
 // The reactor core itself, each are channels in the x and y dimensions
 struct channel_struct ** reactor_core;
 
-static void step(int, struct simulation_configuration_struct*);
-static void generateReport(int, int, struct simulation_configuration_struct*, struct timeval);
-static void updateReactorCore(int, struct simulation_configuration_struct*);
-static void updateNeutrons(int, struct simulation_configuration_struct*);
+struct ProcConfig proc_config;
+
+
+static void step(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
+static void generateReport(int, int, struct simulation_configuration_struct*, struct timeval, struct ProcConfig proc_config);
+static void updateReactorCore(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
+static void updateNeutrons(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
 static void updateFuelAssembly(int, struct channel_struct*);
 static void updateNeutronGenerator(int, struct channel_struct*, struct simulation_configuration_struct*);
 static void createNeutrons(int, struct channel_struct*, double);
@@ -67,15 +83,50 @@ int main(int argc, char * argv[]) {
   initialiseNeutrons(&configuration);
   // Empty the file we will use to store the reactor state
   clearReactorStateFile(argv[2]);
-  printf("Simulation configured for reactor core of size %dm by %dm by %dm, timesteps=%d dt=%dns\n", configuration.size_x,
+
+  proc_config.comm = MPI_COMM_WORLD;
+  // MPI_Comm comm = MPI_COMM_WORLD;
+  // int size, rank;
+  MPI_Init(&argc, &argv);
+
+  MPI_Comm_size(proc_config.comm, &proc_config.size);
+  MPI_Comm_rank(proc_config.comm, &proc_config.rank);
+  
+
+  proc_config.neutron_start = configuration.max_neutrons / proc_config.size * proc_config.rank;
+  if(proc_config.rank != proc_config.size - 1){
+    proc_config.neutron_end = proc_config.neutron_start + (configuration.max_neutrons / proc_config.size);
+  }else{
+    proc_config.neutron_end = configuration.max_neutrons;
+  }
+
+  proc_config.reactor_x_start = configuration.channels_x / proc_config.size * proc_config.rank; 
+  if(proc_config.rank != proc_config.size - 1){
+    proc_config.reactor_x_end = proc_config.reactor_x_start + (configuration.channels_x / proc_config.size);
+  }else{
+    proc_config.reactor_x_end = configuration.channels_x;
+  }
+
+
+  if(proc_config.rank == 0){
+    printf("Simulation configured for reactor core of size %dm by %dm by %dm, timesteps=%d dt=%dns\n", configuration.size_x,
       configuration.size_y, configuration.size_z, configuration.num_timesteps, configuration.dt);
-  printf("------------------------------------------------------------------------------------------------\n");
+    printf("------------------------------------------------------------------------------------------------\n");
+  }
   gettimeofday(&start_time, NULL); // Record simulation start time (for runtime statistics)
+
+  
+
+  
+
   for (int i=0;i<configuration.num_timesteps;i++) {
     // Progress in timesteps
-    step(configuration.dt, &configuration);
+    step(configuration.dt, &configuration, proc_config);
+
+    MPI_Barrier(proc_config.comm);
+
     if (i > 0 && i % configuration.display_progess_frequency == 0) {
-      generateReport(configuration.dt, i, &configuration, start_time);
+      generateReport(configuration.dt, i, &configuration, start_time, proc_config);
     }
 
     if (i > 0 && i % configuration.write_reactor_state_frequency == 0) {
@@ -89,33 +140,57 @@ int main(int argc, char * argv[]) {
   printf("------------------------------------------------------------------------------------------------\n");
   printf("Model completed after %d timesteps\nTotal model time: %f secs\nTotal fissions: %ld releasing %e MeV and %e Joules\nTotal runtime: %.2f seconds\n",
       configuration.num_timesteps, (NS_AS_SEC*configuration.dt)*configuration.num_timesteps, num_fissions, mev, joules, getElapsedTime(start_time));
+  
+  MPI_Finalize();
+  return(0);
 }
 
 /**
  * Undertake a single timestep of processing
  **/
-static void step(int dt, struct simulation_configuration_struct * configuration) {
-  updateNeutrons(dt, configuration);
-  updateReactorCore(dt, configuration);
+static void step(int dt, struct simulation_configuration_struct * configuration, struct ProcConfig proc_config) {
+  updateNeutrons(dt, configuration, proc_config);
+  updateReactorCore(dt, configuration, proc_config);
 }
 
 /**
  * Writes a short report around the current state of the simulation to stdout
  **/
-static void generateReport(int dt, int timestep, struct simulation_configuration_struct * configuration, struct timeval start_time) {
+static void generateReport(int dt, int timestep, struct simulation_configuration_struct * configuration, struct timeval start_time, struct ProcConfig proc_config) {
   unsigned long int num_fissions=getTotalNumberFissions(configuration);
-  double mev=getMeVFromFissions(num_fissions);
-  double joules=getJoulesFromMeV(mev);
-  printf("Timestep: %d, model time is %e secs, current runtime is %.2f seconds. %ld active neutrons, %ld fissions, releasing %e MeV and %e Joules\n", timestep,
-      (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), getNumberActiveNeutrons(configuration), num_fissions, mev, joules);
+ 
+  unsigned long int active_neutrons = getNumberActiveNeutrons(configuration);
+  unsigned long int total_num_fissions, total_active_neutrons;
+  printf("active neutrons is %ld\n", active_neutrons);
+  MPI_Reduce(&num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  MPI_Reduce(&active_neutrons, &total_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  if(proc_config.rank == 0){
+    double total_mev=getMeVFromFissions(total_num_fissions);
+    double total_joules=getJoulesFromMeV(total_mev);
+    printf("Timestep: %d, model time is %e secs, current runtime is %.2f seconds. %ld active neutrons, %ld fissions, releasing %e MeV and %e Joules\n", timestep,
+      (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), total_active_neutrons, total_num_fissions, total_mev, total_joules); 
+  }
+   
+
+  // printf("Timestep: %d, model time is %e secs, current runtime is %.2f seconds. %ld active neutrons, %ld fissions, releasing %e MeV and %e Joules\n", timestep,
+  //     (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), getNumberActiveNeutrons(configuration), num_fissions, mev, joules);
 }
 
 /**
  * Update the state of the reactor core at the current timestep, which will update the state
  * of each fuel assembly and neutron generator.
  **/
-static void updateReactorCore(int dt, struct simulation_configuration_struct * configuration) {
-  for (int i=0;i<configuration->channels_x;i++) {
+static void updateReactorCore(int dt, struct simulation_configuration_struct * configuration, struct ProcConfig proc_config) {
+
+  // int x_start_index = configuration->channels_x / proc_config.size * proc_config.rank; 
+  // int x_end;
+  // if(proc_config.rank != proc_config.size - 1){
+  //   x_end = x_start_index + (configuration->channels_x / proc_config.size);
+  // }else{
+  //   x_end = configuration->channels_x;
+  // }
+
+  for (int i=proc_config.reactor_x_start;i<proc_config.reactor_x_end;i++) {
     for (int j=0;j<configuration->channels_y;j++) {
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
         updateFuelAssembly(dt, &(reactor_core[i][j]));
@@ -133,11 +208,20 @@ static void updateReactorCore(int dt, struct simulation_configuration_struct * c
  * components and energy, and then handling the collision of the neutron with a fuel channel,
  * moderator, or control rod
  **/
-static void updateNeutrons(int dt, struct simulation_configuration_struct * configuration) {
+static void updateNeutrons(int dt, struct simulation_configuration_struct * configuration, struct ProcConfig proc_config) {
   // omp_lock_t lock;
   // omp_init_lock(&lock);
 // #pragma omp parallel for
-  for (long int i=0;i<configuration->max_neutrons;i++) {
+
+  // int start_index = configuration->max_neutrons / proc_config.size * proc_config.rank;
+  // int end;
+  // if(proc_config.rank != proc_config.size - 1){
+  //   end = start_index + (configuration->max_neutrons / proc_config.size);
+  // }else{
+  //   end = configuration->max_neutrons;
+  // }
+  
+  for (long int i=proc_config.neutron_start;i<proc_config.neutron_end;i++) {
     if (neutrons[i].active) {
       // Rest mass is 1 for a neutron
       double total_velocity=MeVToVelocity(neutrons[i].energy, 1);
