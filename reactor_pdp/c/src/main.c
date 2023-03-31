@@ -28,8 +28,9 @@ struct ProcConfig{
   MPI_Comm comm;
   int neutron_start;
   int neutron_end;
-  int reactor_x_start;
-  int reactor_x_end;
+  int neutron_num;
+  // int reactor_x_start;
+  // int reactor_x_end;
 };
 
 // The neutrons that are currently moving throughout the reactor core
@@ -41,26 +42,30 @@ unsigned long int currentNeutronIndex=0;
 // The reactor core itself, each are channels in the x and y dimensions
 struct channel_struct ** reactor_core;
 
+struct channel_struct ** total_reactor_core;
+
 struct ProcConfig proc_config;
 
 
 static void step(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
-static void generateReport(int, int, struct simulation_configuration_struct*, struct timeval, struct ProcConfig proc_config);
+static void generateReport(int, int, struct simulation_configuration_struct*, struct timeval, unsigned long int current_active_neutrons);
 static void updateReactorCore(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
 static void updateNeutrons(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
 static void updateFuelAssembly(int, struct channel_struct*);
 static void updateNeutronGenerator(int, struct channel_struct*, struct simulation_configuration_struct*);
 static void createNeutrons(int, struct channel_struct*, double);
 static void initialiseReactorCore(struct simulation_configuration_struct*);
-static void initialiseNeutrons(struct simulation_configuration_struct*);
+static void initialiseNeutrons(struct simulation_configuration_struct*, struct ProcConfig proc_config);
 static double getControlRodLoweredToLevel(struct simulation_configuration_struct*, int, int);
 static void writeReactorState(struct simulation_configuration_struct*, int, char*);
 static void getFuelAssemblyChemicalContents(struct fuel_assembly_struct*, double*);
 static void clearReactorStateFile(char*);
 static struct channel_struct* locateChannelFromPosition(double, double, struct simulation_configuration_struct *);
 static unsigned long int getTotalNumberFissions(struct simulation_configuration_struct*);
-static unsigned long int getNumberActiveNeutrons(struct simulation_configuration_struct*);
+static unsigned long int getNumberActiveNeutrons(struct simulation_configuration_struct*, struct ProcConfig proc_config);
 static double getElapsedTime(struct timeval);
+
+static unsigned long int current_active_neutrons;
 
 /**
 * Program entry point, this code is run with configuration file as command line argument
@@ -78,9 +83,9 @@ int main(int argc, char * argv[]) {
   struct timeval start_time;
   // Parse the configuration and then initialise reactor core and neutrons from this
   struct simulation_configuration_struct configuration;
+  struct simulation_configuration_struct total_configuration;
   parseConfiguration(argv[1], &configuration);
   initialiseReactorCore(&configuration);
-  initialiseNeutrons(&configuration);
   // Empty the file we will use to store the reactor state
   clearReactorStateFile(argv[2]);
 
@@ -99,13 +104,18 @@ int main(int argc, char * argv[]) {
   }else{
     proc_config.neutron_end = configuration.max_neutrons;
   }
+  proc_config.neutron_num = proc_config.neutron_end - proc_config.neutron_start;
 
-  proc_config.reactor_x_start = configuration.channels_x / proc_config.size * proc_config.rank; 
-  if(proc_config.rank != proc_config.size - 1){
-    proc_config.reactor_x_end = proc_config.reactor_x_start + (configuration.channels_x / proc_config.size);
-  }else{
-    proc_config.reactor_x_end = configuration.channels_x;
-  }
+  printf("process neutron num is %d \n", proc_config.neutron_num);
+
+  initialiseNeutrons(&configuration, proc_config);
+  // proc_config.reactor_x_start = configuration.channels_x / proc_config.size * proc_config.rank; 
+  // if(proc_config.rank != proc_config.size - 1){
+  //   proc_config.reactor_x_end = proc_config.reactor_x_start + (configuration.channels_x / proc_config.size);
+  // }else{
+  //   proc_config.reactor_x_end = configuration.channels_x;
+  // }
+  MPI_Barrier(proc_config.comm);
 
 
   if(proc_config.rank == 0){
@@ -115,31 +125,59 @@ int main(int argc, char * argv[]) {
   }
   gettimeofday(&start_time, NULL); // Record simulation start time (for runtime statistics)
 
-  
-
-  
 
   for (int i=0;i<configuration.num_timesteps;i++) {
     // Progress in timesteps
     step(configuration.dt, &configuration, proc_config);
-
+    // printf("success!\n");
     MPI_Barrier(proc_config.comm);
 
-    if (i > 0 && i % configuration.display_progess_frequency == 0) {
-      generateReport(configuration.dt, i, &configuration, start_time, proc_config);
+    for (int i = 0; i < configuration.channels_x; i++) {
+      for (int j = 0; j < configuration.channels_y; j++) { 
+        MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.num_fissions, &reactor_core[i][j].contents.fuel_assembly.num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+        // for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U235], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U235], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U238], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U238], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U236], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U236], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103], 1, MPI_INT, MPI_SUM, 0, proc_config.comm);
+        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240], 1, MPI_INT, MPI_SUM, 0, proc_config.comm);
+        // }
+      }
     }
+    current_active_neutrons = getNumberActiveNeutrons(&configuration, proc_config); 
+    MPI_Barrier(proc_config.comm);
+    MPI_Reduce(&current_active_neutrons, &current_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
 
-    if (i > 0 && i % configuration.write_reactor_state_frequency == 0) {
-      writeReactorState(&configuration, i, argv[2]);
+    
+    
+    if(proc_config.rank == 0){
+
+      if (i > 0 && i % configuration.display_progess_frequency == 0) {
+        generateReport(configuration.dt, i, &configuration, start_time, current_active_neutrons);
+      }
+      
+      if (i > 0 && i % configuration.write_reactor_state_frequency == 0) {
+        writeReactorState(&configuration, i, argv[2]);
+      }
     }
+    
   }
-  // Now we are finished write some summary information
-  unsigned long int num_fissions=getTotalNumberFissions(&configuration);
-  double mev=getMeVFromFissions(num_fissions);
-  double joules=getJoulesFromMeV(mev);
-  printf("------------------------------------------------------------------------------------------------\n");
-  printf("Model completed after %d timesteps\nTotal model time: %f secs\nTotal fissions: %ld releasing %e MeV and %e Joules\nTotal runtime: %.2f seconds\n",
+  
+  if(proc_config.rank == 0){
+    // Now we are finished write some summary information
+    unsigned long int num_fissions=getTotalNumberFissions(&configuration);
+    double mev=getMeVFromFissions(num_fissions);
+    double joules=getJoulesFromMeV(mev);
+    printf("------------------------------------------------------------------------------------------------\n");
+    printf("Model completed after %d timesteps\nTotal model time: %f secs\nTotal fissions: %ld releasing %e MeV and %e Joules\nTotal runtime: %.2f seconds\n",
       configuration.num_timesteps, (NS_AS_SEC*configuration.dt)*configuration.num_timesteps, num_fissions, mev, joules, getElapsedTime(start_time));
+  }
   
   MPI_Finalize();
   return(0);
@@ -156,19 +194,20 @@ static void step(int dt, struct simulation_configuration_struct * configuration,
 /**
  * Writes a short report around the current state of the simulation to stdout
  **/
-static void generateReport(int dt, int timestep, struct simulation_configuration_struct * configuration, struct timeval start_time, struct ProcConfig proc_config) {
+static void generateReport(int dt, int timestep, struct simulation_configuration_struct * configuration, struct timeval start_time, unsigned long int current_active_neutrons) {
   unsigned long int num_fissions=getTotalNumberFissions(configuration);
- 
-  unsigned long int active_neutrons = getNumberActiveNeutrons(configuration);
-  unsigned long int total_num_fissions, total_active_neutrons;
-  printf("active neutrons is %ld\n", active_neutrons);
-  MPI_Reduce(&num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
-  MPI_Reduce(&active_neutrons, &total_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  double mev=getMeVFromFissions(num_fissions);
+  double joules=getJoulesFromMeV(mev);
+  // unsigned long int active_neutrons = getNumberActiveNeutrons(configuration, proc_config);
+  // unsigned long int total_active_neutrons;
+  // unsigned long int total_num_fissions, total_active_neutrons;
+  // printf("active neutrons is %ld\n", active_neutrons);
+  // MPI_Reduce(&num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  // MPI_Barrier(proc_config.comm);
+  // MPI_Reduce(&active_neutrons, &total_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
   if(proc_config.rank == 0){
-    double total_mev=getMeVFromFissions(total_num_fissions);
-    double total_joules=getJoulesFromMeV(total_mev);
     printf("Timestep: %d, model time is %e secs, current runtime is %.2f seconds. %ld active neutrons, %ld fissions, releasing %e MeV and %e Joules\n", timestep,
-      (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), total_active_neutrons, total_num_fissions, total_mev, total_joules); 
+      (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), current_active_neutrons, num_fissions, mev, joules); 
   }
    
 
@@ -190,7 +229,7 @@ static void updateReactorCore(int dt, struct simulation_configuration_struct * c
   //   x_end = configuration->channels_x;
   // }
 
-  for (int i=proc_config.reactor_x_start;i<proc_config.reactor_x_end;i++) {
+  for (int i=0;i<configuration->channels_x;i++) {
     for (int j=0;j<configuration->channels_y;j++) {
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
         updateFuelAssembly(dt, &(reactor_core[i][j]));
@@ -221,7 +260,7 @@ static void updateNeutrons(int dt, struct simulation_configuration_struct * conf
   //   end = configuration->max_neutrons;
   // }
   
-  for (long int i=proc_config.neutron_start;i<proc_config.neutron_end;i++) {
+  for (long int i=0;i<proc_config.neutron_num;i++) {
     if (neutrons[i].active) {
       // Rest mass is 1 for a neutron
       double total_velocity=MeVToVelocity(neutrons[i].energy, 1);
@@ -436,14 +475,23 @@ static void initialiseReactorCore(struct simulation_configuration_struct * simul
  * is read and currentNeutronIndex decremented. When deactivating a neutron the index of the newly freed
  * location is added to the next element of neutron_index and currentNeutronIndex is incremented
  **/
-static void initialiseNeutrons(struct simulation_configuration_struct * simulation_configuration) {
-  neutrons=(struct neutron_struct*) malloc(sizeof(struct neutron_struct) * simulation_configuration->max_neutrons);
-  neutron_index=(unsigned long int*) malloc(sizeof(unsigned long int) * simulation_configuration->max_neutrons);
-  for (int i=0;i<simulation_configuration->max_neutrons;i++) {
+static void initialiseNeutrons(struct simulation_configuration_struct * simulation_configuration, struct ProcConfig proc_config) {
+  // neutrons=(struct neutron_struct*) malloc(sizeof(struct neutron_struct) * simulation_configuration->max_neutrons);
+  // neutron_index=(unsigned long int*) malloc(sizeof(unsigned long int) * simulation_configuration->max_neutrons);
+  // for (int i=0;i<simulation_configuration->max_neutrons;i++) {
+  //   neutron_index[i]=i;
+  //   neutrons[i].active=false;
+  // }
+  // currentNeutronIndex=simulation_configuration->max_neutrons;
+  
+  neutrons=(struct neutron_struct*) malloc(sizeof(struct neutron_struct) * proc_config.neutron_num);
+  neutron_index=(unsigned long int*) malloc(sizeof(unsigned long int) * proc_config.neutron_num);
+  for (int i=0;i<proc_config.neutron_num;i++) {
     neutron_index[i]=i;
     neutrons[i].active=false;
   }
-  currentNeutronIndex=simulation_configuration->max_neutrons;
+  currentNeutronIndex=proc_config.neutron_num;
+
 }
 
 /**
@@ -536,12 +584,18 @@ static unsigned long int getTotalNumberFissions(struct simulation_configuration_
 /**
  * Determines the number of currently active neutrons in the simulation
  **/
-static unsigned long int getNumberActiveNeutrons(struct simulation_configuration_struct * configuration) {
+static unsigned long int getNumberActiveNeutrons(struct simulation_configuration_struct * configuration, struct ProcConfig proc_config) {
+  // unsigned long int activeNeutrons=0;
+  // for (unsigned long int i=0;i<configuration->max_neutrons;i++) {
+  //   if (neutrons[i].active) activeNeutrons++;
+  // }
+  // return activeNeutrons;
+
   unsigned long int activeNeutrons=0;
-  for (unsigned long int i=0;i<configuration->max_neutrons;i++) {
+  for (unsigned long int i=0;i<proc_config.neutron_num;i++) {
     if (neutrons[i].active) activeNeutrons++;
   }
-  return activeNeutrons;
+  return activeNeutrons; 
 }
 
 /**
