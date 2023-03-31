@@ -48,24 +48,24 @@ struct ProcConfig proc_config;
 
 
 static void step(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
-static void generateReport(int, int, struct simulation_configuration_struct*, struct timeval, unsigned long int current_active_neutrons);
+static void generateReport(int, int, struct simulation_configuration_struct*, struct timeval, struct ProcConfig);
 static void updateReactorCore(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
 static void updateNeutrons(int, struct simulation_configuration_struct*, struct ProcConfig proc_config);
 static void updateFuelAssembly(int, struct channel_struct*);
 static void updateNeutronGenerator(int, struct channel_struct*, struct simulation_configuration_struct*);
 static void createNeutrons(int, struct channel_struct*, double);
 static void initialiseReactorCore(struct simulation_configuration_struct*);
-static void initialiseNeutrons(struct simulation_configuration_struct*, struct ProcConfig proc_config);
+static void initialiseNeutrons(struct simulation_configuration_struct*, struct ProcConfig);
 static double getControlRodLoweredToLevel(struct simulation_configuration_struct*, int, int);
-static void writeReactorState(struct simulation_configuration_struct*, int, char*);
+static void writeReactorState(struct simulation_configuration_struct*, int, char*, struct ProcConfig);
 static void getFuelAssemblyChemicalContents(struct fuel_assembly_struct*, double*);
 static void clearReactorStateFile(char*);
 static struct channel_struct* locateChannelFromPosition(double, double, struct simulation_configuration_struct *);
 static unsigned long int getTotalNumberFissions(struct simulation_configuration_struct*);
-static unsigned long int getNumberActiveNeutrons(struct simulation_configuration_struct*, struct ProcConfig proc_config);
+static unsigned long int getNumberActiveNeutrons(struct ProcConfig proc_config);
 static double getElapsedTime(struct timeval);
 
-static unsigned long int current_active_neutrons;
+
 
 /**
 * Program entry point, this code is run with configuration file as command line argument
@@ -83,9 +83,9 @@ int main(int argc, char * argv[]) {
   struct timeval start_time;
   // Parse the configuration and then initialise reactor core and neutrons from this
   struct simulation_configuration_struct configuration;
-  struct simulation_configuration_struct total_configuration;
+  
   parseConfiguration(argv[1], &configuration);
-  initialiseReactorCore(&configuration);
+  // initialiseReactorCore(&configuration);
   // Empty the file we will use to store the reactor state
   clearReactorStateFile(argv[2]);
 
@@ -107,7 +107,7 @@ int main(int argc, char * argv[]) {
   proc_config.neutron_num = proc_config.neutron_end - proc_config.neutron_start;
 
   printf("process neutron num is %d \n", proc_config.neutron_num);
-
+  initialiseReactorCore(&configuration);
   initialiseNeutrons(&configuration, proc_config);
   // proc_config.reactor_x_start = configuration.channels_x / proc_config.size * proc_config.rank; 
   // if(proc_config.rank != proc_config.size - 1){
@@ -131,52 +131,74 @@ int main(int argc, char * argv[]) {
     step(configuration.dt, &configuration, proc_config);
     // printf("success!\n");
     MPI_Barrier(proc_config.comm);
-
-    for (int i = 0; i < configuration.channels_x; i++) {
-      for (int j = 0; j < configuration.channels_y; j++) { 
-        MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.num_fissions, &reactor_core[i][j].contents.fuel_assembly.num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
-        // for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U235], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U235], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U238], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U238], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U236], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U236], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103], 1, MPI_INT, MPI_SUM, 0, proc_config.comm);
-        //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240], 1, MPI_INT, MPI_SUM, 0, proc_config.comm);
-        // }
-      }
-    }
-    current_active_neutrons = getNumberActiveNeutrons(&configuration, proc_config); 
-    MPI_Barrier(proc_config.comm);
-    MPI_Reduce(&current_active_neutrons, &current_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
-
-    
-    
-    if(proc_config.rank == 0){
-
+    // if (i > 0 && i % configuration.display_progess_frequency == 0) {
+    //   unsigned long int proc_num_fissions = 0;
+    //   unsigned long int total_proc_num_fissions = 0;
+    //   unsigned long int proc_quantities[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    //   unsigned long int total_quantities[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    //   for (int i = 0; i < configuration.channels_x; i++) {
+    //     for (int j = 0; j < configuration.channels_y; j++) { 
+    //     proc_num_fissions += reactor_core[i][j].contents.fuel_assembly.num_fissions; 
+        
+    //     // MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.num_fissions, &reactor_core[i][j].contents.fuel_assembly.num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+    //     for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
+    //       proc_quantities[0] += reactor_core[i][j].contents.fuel_assembly.quantities[k][U235];
+    //       proc_quantities[1] += reactor_core[i][j].contents.fuel_assembly.quantities[k][U238]; 
+    //       proc_quantities[2] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239];
+    //       proc_quantities[3] += reactor_core[i][j].contents.fuel_assembly.quantities[k][U236];
+    //       proc_quantities[4] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141];
+    //       proc_quantities[5] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92];
+    //       proc_quantities[6] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140];
+    //       proc_quantities[7] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94];
+    //       proc_quantities[8] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134];
+    //       proc_quantities[9] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103];
+    //       proc_quantities[10] += reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240];
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U235], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U235], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U238], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U238], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][U236], &reactor_core[i][j].contents.fuel_assembly.quantities[k][U236], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134], 1, MPI_DOUBLE, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103], 1, MPI_INT, MPI_SUM, 0, proc_config.comm);
+    //     //   MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240], &reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240], 1, MPI_INT, MPI_SUM, 0, proc_config.comm);
+    //       }
+    //     }
+    //   }
+    //   MPI_Reduce(&proc_num_fissions, &total_proc_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+    //   MPI_Reduce(proc_quantities, total_quantities, 11, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+      
       if (i > 0 && i % configuration.display_progess_frequency == 0) {
-        generateReport(configuration.dt, i, &configuration, start_time, current_active_neutrons);
+        generateReport(configuration.dt, i, &configuration, start_time, proc_config);
       }
       
       if (i > 0 && i % configuration.write_reactor_state_frequency == 0) {
-        writeReactorState(&configuration, i, argv[2]);
+        writeReactorState(&configuration, i, argv[2], proc_config);
       }
     }
     
-  }
+    
+
+
+  unsigned long int proc_num_fissions = 0;
+  unsigned long int total_num_fissions = 0;
+  for (int i = 0; i < configuration.channels_x; i++) {
+    for (int j = 0; j < configuration.channels_y; j++) { 
+      proc_num_fissions += reactor_core[i][j].contents.fuel_assembly.num_fissions; 
+    }
+  } 
+  MPI_Reduce(&proc_num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  
+  double total_mev=getMeVFromFissions(total_num_fissions);
+  double total_joules=getJoulesFromMeV(total_mev);
   
   if(proc_config.rank == 0){
     // Now we are finished write some summary information
-    unsigned long int num_fissions=getTotalNumberFissions(&configuration);
-    double mev=getMeVFromFissions(num_fissions);
-    double joules=getJoulesFromMeV(mev);
     printf("------------------------------------------------------------------------------------------------\n");
     printf("Model completed after %d timesteps\nTotal model time: %f secs\nTotal fissions: %ld releasing %e MeV and %e Joules\nTotal runtime: %.2f seconds\n",
-      configuration.num_timesteps, (NS_AS_SEC*configuration.dt)*configuration.num_timesteps, num_fissions, mev, joules, getElapsedTime(start_time));
+      configuration.num_timesteps, (NS_AS_SEC*configuration.dt)*configuration.num_timesteps, total_num_fissions, total_mev, total_joules, getElapsedTime(start_time));
   }
   
   MPI_Finalize();
@@ -194,21 +216,44 @@ static void step(int dt, struct simulation_configuration_struct * configuration,
 /**
  * Writes a short report around the current state of the simulation to stdout
  **/
-static void generateReport(int dt, int timestep, struct simulation_configuration_struct * configuration, struct timeval start_time, unsigned long int current_active_neutrons) {
-  unsigned long int num_fissions=getTotalNumberFissions(configuration);
-  double mev=getMeVFromFissions(num_fissions);
-  double joules=getJoulesFromMeV(mev);
-  // unsigned long int active_neutrons = getNumberActiveNeutrons(configuration, proc_config);
-  // unsigned long int total_active_neutrons;
-  // unsigned long int total_num_fissions, total_active_neutrons;
-  // printf("active neutrons is %ld\n", active_neutrons);
-  // MPI_Reduce(&num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
-  // MPI_Barrier(proc_config.comm);
-  // MPI_Reduce(&active_neutrons, &total_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+static void generateReport(int dt, int timestep, struct simulation_configuration_struct* configuration, struct timeval start_time, struct ProcConfig proc_config) {
+  unsigned long int current_active_neutrons;
+  unsigned long int proc_num_fissions = 0;
+  unsigned long int total_num_fissions = 0;
+  current_active_neutrons = getNumberActiveNeutrons(proc_config);
+  for (int i = 0; i < configuration->channels_x; i++) {
+    for (int j = 0; j < configuration->channels_y; j++) { 
+      proc_num_fissions += reactor_core[i][j].contents.fuel_assembly.num_fissions; 
+    }
+  } 
+  MPI_Barrier(proc_config.comm);
+  MPI_Reduce(&current_active_neutrons, &current_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  MPI_Reduce(&proc_num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  
+  double total_mev=getMeVFromFissions(total_num_fissions);
+  double total_joules=getJoulesFromMeV(total_mev);
   if(proc_config.rank == 0){
     printf("Timestep: %d, model time is %e secs, current runtime is %.2f seconds. %ld active neutrons, %ld fissions, releasing %e MeV and %e Joules\n", timestep,
-      (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), current_active_neutrons, num_fissions, mev, joules); 
+    (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), current_active_neutrons, total_num_fissions, total_mev, total_joules); 
   }
+
+
+
+// static void generateReport(int dt, int timestep, struct simulation_configuration_struct * configuration, struct timeval start_time, unsigned long int current_active_neutrons) {
+//   unsigned long int num_fissions=getTotalNumberFissions(configuration);
+//   double mev=getMeVFromFissions(num_fissions);
+//   double joules=getJoulesFromMeV(mev);
+//   // unsigned long int active_neutrons = getNumberActiveNeutrons(configuration, proc_config);
+//   // unsigned long int total_active_neutrons;
+//   // unsigned long int total_num_fissions, total_active_neutrons;
+//   // printf("active neutrons is %ld\n", active_neutrons);
+//   // MPI_Reduce(&num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+//   // MPI_Barrier(proc_config.comm);
+//   // MPI_Reduce(&active_neutrons, &total_active_neutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+//   if(proc_config.rank == 0){
+//     printf("Timestep: %d, model time is %e secs, current runtime is %.2f seconds. %ld active neutrons, %ld fissions, releasing %e MeV and %e Joules\n", timestep,
+//       (NS_AS_SEC*dt)*timestep, getElapsedTime(start_time), current_active_neutrons, num_fissions, mev, joules); 
+//   }
    
 
   // printf("Timestep: %d, model time is %e secs, current runtime is %.2f seconds. %ld active neutrons, %ld fissions, releasing %e MeV and %e Joules\n", timestep,
@@ -510,26 +555,89 @@ static double getControlRodLoweredToLevel(struct simulation_configuration_struct
 /**
  * Writes out the current state of the reactor at this timestep to a file
  **/
-static void writeReactorState(struct simulation_configuration_struct * configuration, int timestep, char * outfile) {
-  unsigned long int num_fissions=getTotalNumberFissions(configuration);
-  double mev=getMeVFromFissions(num_fissions);
-  double joules=getJoulesFromMeV(mev);
-  FILE * f=fopen(outfile, "a");
-  fprintf(f, "Reactor state at time %e secs, %ld fissions releasing %e MeV and %e Joules\n", (NS_AS_SEC*configuration->dt)*timestep, num_fissions, mev, joules);
-  fprintf(f, "----------------------------------------------------------------------------\n");
-  for (int i=0;i<configuration->channels_x;i++) {
-    for (int j=0;j<configuration->channels_y;j++) {
-      if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
-        double pc[11];
-        getFuelAssemblyChemicalContents(&(reactor_core[i][j].contents.fuel_assembly), pc);
-        fprintf(f, "Fuel assembly %d %d, %e U235 %e U238 %e Pu239 %e U236 %e Ba141 %e Kr92 %e Xe140 %e Sr94 %e Xe134 %e Zr103 %e Pu240\n",
-        i, j, pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7], pc[8], pc[9], pc[10]);
+static void writeReactorState(struct simulation_configuration_struct * configuration, int timestep, char * outfile, struct ProcConfig proc_config) {
+  
+  // if (i > 0 && i % configuration.display_progess_frequency == 0) {
+      unsigned long int proc_num_fissions = 0;
+      unsigned long int total_num_fissions = 0;
+      unsigned long int proc_quantities[configuration->channels_x][configuration->channels_y][11];
+      unsigned long int total_quantities[configuration->channels_x][configuration->channels_y][11];
+      for (int i = 0; i < configuration->channels_x; i++) {
+        for (int j = 0; j < configuration->channels_y; j++) { 
+        proc_num_fissions += reactor_core[i][j].contents.fuel_assembly.num_fissions; 
+        
+        // MPI_Reduce(&reactor_core[i][j].contents.fuel_assembly.num_fissions, &reactor_core[i][j].contents.fuel_assembly.num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+          for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
+            proc_quantities[i][j][0] = reactor_core[i][j].contents.fuel_assembly.quantities[k][U235];
+            proc_quantities[i][j][1] = reactor_core[i][j].contents.fuel_assembly.quantities[k][U238]; 
+            proc_quantities[i][j][2] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu239];
+            proc_quantities[i][j][3] = reactor_core[i][j].contents.fuel_assembly.quantities[k][U236];
+            proc_quantities[i][j][4] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Ba141];
+            proc_quantities[i][j][5] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Kr92];
+            proc_quantities[i][j][6] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe140];
+            proc_quantities[i][j][7] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Sr94];
+            proc_quantities[i][j][8] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Xe134];
+            proc_quantities[i][j][9] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Zr103];
+            proc_quantities[i][j][10] = reactor_core[i][j].contents.fuel_assembly.quantities[k][Pu240];
+          }
+          MPI_Reduce(proc_quantities[i][j], total_quantities[i][j], 11, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+        }
+      }
+
+      MPI_Reduce(&proc_num_fissions, &total_num_fissions, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+      // MPI_Reduce(proc_quantities, total_quantities, 11, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
+  
+  
+  
+  
+  
+  
+  
+  if(proc_config.rank == 0){
+    double total_mev=getMeVFromFissions(total_num_fissions);
+    double total_joules=getJoulesFromMeV(total_mev);
+    FILE * f=fopen(outfile, "a");
+    fprintf(f, "Reactor state at time %e secs, %ld fissions releasing %e MeV and %e Joules\n", (NS_AS_SEC*configuration->dt)*timestep, total_num_fissions, total_mev, total_joules);
+    fprintf(f, "----------------------------------------------------------------------------\n");
+    for (int i=0;i<configuration->channels_x;i++) {
+      for (int j=0;j<configuration->channels_y;j++) {
+        if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
+          double pc[11];
+          getFuelAssemblyChemicalContents(&(reactor_core[i][j].contents.fuel_assembly), pc);
+          fprintf(f, "Fuel assembly %d %d, %e U235 %e U238 %e Pu239 %e U236 %e Ba141 %e Kr92 %e Xe140 %e Sr94 %e Xe134 %e Zr103 %e Pu240\n",
+          i, j, pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7], pc[8], pc[9], pc[10]);
+        }
       }
     }
+    fprintf(f, "===========================================================================\n");
+    fclose(f);
   }
-  fprintf(f, "===========================================================================\n");
-  fclose(f);
+  
 }
+
+
+
+
+// static void writeReactorState(struct simulation_configuration_struct * configuration, int timestep, char * outfile) {
+//   unsigned long int num_fissions=getTotalNumberFissions(configuration);
+//   double mev=getMeVFromFissions(num_fissions);
+//   double joules=getJoulesFromMeV(mev);
+//   FILE * f=fopen(outfile, "a");
+//   fprintf(f, "Reactor state at time %e secs, %ld fissions releasing %e MeV and %e Joules\n", (NS_AS_SEC*configuration->dt)*timestep, num_fissions, mev, joules);
+//   fprintf(f, "----------------------------------------------------------------------------\n");
+//   for (int i=0;i<configuration->channels_x;i++) {
+//     for (int j=0;j<configuration->channels_y;j++) {
+//       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
+//         double pc[11];
+//         getFuelAssemblyChemicalContents(&(reactor_core[i][j].contents.fuel_assembly), pc);
+//         fprintf(f, "Fuel assembly %d %d, %e U235 %e U238 %e Pu239 %e U236 %e Ba141 %e Kr92 %e Xe140 %e Sr94 %e Xe134 %e Zr103 %e Pu240\n",
+//         i, j, pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7], pc[8], pc[9], pc[10]);
+//       }
+//     }
+//   }
+//   fprintf(f, "===========================================================================\n");
+//   fclose(f);
+// }
 
 /**
  * Retrieves the quantities of atoms in a fuel assembly across all the pellets for
@@ -584,7 +692,7 @@ static unsigned long int getTotalNumberFissions(struct simulation_configuration_
 /**
  * Determines the number of currently active neutrons in the simulation
  **/
-static unsigned long int getNumberActiveNeutrons(struct simulation_configuration_struct * configuration, struct ProcConfig proc_config) {
+static unsigned long int getNumberActiveNeutrons(struct ProcConfig proc_config) {
   // unsigned long int activeNeutrons=0;
   // for (unsigned long int i=0;i<configuration->max_neutrons;i++) {
   //   if (neutrons[i].active) activeNeutrons++;
