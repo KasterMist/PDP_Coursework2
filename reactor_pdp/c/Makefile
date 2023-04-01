@@ -4,7 +4,7 @@ CC=mpicc
 
 CFLAGS=	-O3 -fopenmp -lm
 
-SRC = src/simulation_configuration.c src/main.c src/simulation_support.c
+SRC = src/simulation_configuration.c src/main.c src/simulation_support.c src/mpi_support.c
 LFLAGS= $(CFLAGS)
 
 # .PHONY: archer2 local build
