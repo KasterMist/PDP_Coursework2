@@ -171,7 +171,9 @@ extern double ***returnTotalAtomQuantities(struct channel_struct ** reactor_core
 // }
 
 
-
+/*
+ * After finishing the total atom quantities calculation, free the created array.
+ */
 extern void free_matrix(double ***matrix, struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration){
   for (int i = 0; i < configuration->channels_x; i++) {
     for (int j = 0; j < configuration->channels_y; j++) {
