@@ -43,7 +43,7 @@ unsigned long int getTotalNumberActiveNeutrons(struct neutron_struct *neutrons, 
 extern unsigned long int getTotalNumFissions(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){ 
   unsigned long int proc_num_fissions = 0;
   unsigned long int total_num_fissions = 0;
-  #pragma omp parallel for shared(reactor_core) reduction(+:proc_num_fissions)
+  // #pragma omp parallel for shared(reactor_core) reduction(+:proc_num_fissions)
   for (int i = 0; i < configuration->channels_x; i++) {
     for (int j = 0; j < configuration->channels_y; j++) { 
       proc_num_fissions += reactor_core[i][j].contents.fuel_assembly.num_fissions; 
@@ -58,7 +58,7 @@ extern double ***returnInitialAtomQuantities(struct channel_struct ** reactor_co
 
   double ***initial_quantities;
   initial_quantities = (double ***)malloc(configuration->channels_x * sizeof(double **));
-  #pragma omp parallel for default(none) shared(initial_quantities) firstprivate(configuration)
+  // #pragma omp parallel for default(none) shared(initial_quantities) firstprivate(configuration)
   for (int i = 0; i < configuration->channels_x; i++) {
     initial_quantities[i] = (double **)malloc(configuration->channels_y * sizeof(double *));
     for (int j = 0; j < configuration->channels_y; j++) {
@@ -69,7 +69,7 @@ extern double ***returnInitialAtomQuantities(struct channel_struct ** reactor_co
     }
   }
 
-  #pragma omp parallel for default(none) firstprivate(configuration, reactor_core) shared(initial_quantities)
+  // #pragma omp parallel for default(none) firstprivate(configuration, reactor_core) shared(initial_quantities)
   for (int i = 0; i < configuration->channels_x; i++) {
     // total_proc_quantities[i] = (double **)malloc(configuration->channels_y * sizeof(double*));
     for (int j = 0; j < configuration->channels_y; j++) {  

@@ -351,7 +351,7 @@ static void createNeutrons(int num_neutrons, struct channel_struct * channel, do
 static void initialiseReactorCore(struct simulation_configuration_struct * simulation_configuration) {
   reactor_core=(struct channel_struct**) malloc(sizeof(struct channel_struct*)*simulation_configuration->channels_x);
   
-  #pragma omp parallel for shared(reactor_core)
+  // #pragma omp parallel for shared(reactor_core)
   for (int i=0;i<simulation_configuration->channels_x;i++) {
     reactor_core[i]=(struct channel_struct*) malloc(sizeof(struct channel_struct)*simulation_configuration->channels_y);
     
