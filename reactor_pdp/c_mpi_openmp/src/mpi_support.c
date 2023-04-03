@@ -12,7 +12,9 @@
 #include "simulation_support.h"
 
 
-
+/* Initialize the MPI configuration and send it to proc_config. 
+ * It will contain the information of the MPI environment and each process's allocated neutrons length.
+ */ 
 void MPI_Initialize(struct simulation_configuration_struct* configuration, struct ProcConfig* proc_config){
 
   // struct ProcConfig proc_config;
@@ -20,26 +22,41 @@ void MPI_Initialize(struct simulation_configuration_struct* configuration, struc
   MPI_Comm_size(proc_config->comm, &proc_config->size);
   MPI_Comm_rank(proc_config->comm, &proc_config->rank);
   
+  // proc_config->neutron_start = configuration->max_neutrons / proc_config->size * proc_config->rank;
+  // if(proc_config->rank != proc_config->size - 1){
+  //   proc_config->neutron_end = proc_config->neutron_start + (configuration->max_neutrons / proc_config->size);
+  // }else{
+  //   proc_config->neutron_end = configuration->max_neutrons;
+  // }
+  // proc_config->neutron_num = proc_config->neutron_end - proc_config->neutron_start;
 
-  proc_config->neutron_start = configuration->max_neutrons / proc_config->size * proc_config->rank;
-  if(proc_config->rank != proc_config->size - 1){
-    proc_config->neutron_end = proc_config->neutron_start + (configuration->max_neutrons / proc_config->size);
-  }else{
-    proc_config->neutron_end = configuration->max_neutrons;
+  proc_config->neutron_num = configuration->max_neutrons / proc_config->size;
+  if(proc_config->rank == proc_config->size - 1){
+    proc_config->neutron_num += configuration->max_neutrons % proc_config->size;
   }
-  proc_config->neutron_num = proc_config->neutron_end - proc_config->neutron_start;
   
 }
 
+/* This will replace the original function "getNumberActiveNeutrons" in main.c
+ * Based on the previous function "getNumberActiveNeutrons", this function add MPI_Reduce to 
+ * merge all the active neutrons together.
+ */
 unsigned long int getTotalNumberActiveNeutrons(struct neutron_struct *neutrons, struct ProcConfig proc_config) {
   unsigned long int activeNeutrons=0;
+
+  #pragma omp parallel for default(none) firstprivate(proc_config, neutrons) reduction(+:activeNeutrons)
   for (unsigned long int i=0;i<proc_config.neutron_num;i++) {
     if (neutrons[i].active) activeNeutrons++;
   }
+
   MPI_Reduce(&activeNeutrons, &activeNeutrons, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, proc_config.comm);
   return activeNeutrons; 
 }
 
+/*
+ * This function replaces the original function "getTotalNumberFissions" in the main.c.
+ * Based on the previous function, this function add MPI_Reduce to merge the fission number together.
+ */
 extern unsigned long int getTotalNumFissions(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){ 
   unsigned long int proc_num_fissions = 0;
   unsigned long int total_num_fissions = 0;
@@ -54,6 +71,10 @@ extern unsigned long int getTotalNumFissions(struct channel_struct ** reactor_co
 }
 
 
+/*
+ * This function is to get the atom quantities of the initial reactors.
+ * It is called after running initialiseReactorCore function.
+ */
 extern double ***returnInitialAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){
 
   double ***initial_quantities;
@@ -71,9 +92,9 @@ extern double ***returnInitialAtomQuantities(struct channel_struct ** reactor_co
 
   #pragma omp parallel for default(none) firstprivate(configuration, reactor_core) shared(initial_quantities)
   for (int i = 0; i < configuration->channels_x; i++) {
-    // total_proc_quantities[i] = (double **)malloc(configuration->channels_y * sizeof(double*));
+    
     for (int j = 0; j < configuration->channels_y; j++) {  
-      // total_proc_quantities[i][j] = (double *)malloc(11 * sizeof(double));
+      
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
         // getAtomQuantities(&reactor_core[i][j].contents.fuel_assembly, configuration, proc_config, &initial_quantities[i][j]);
         for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
@@ -87,7 +108,11 @@ extern double ***returnInitialAtomQuantities(struct channel_struct ** reactor_co
   return initial_quantities;
 }
 
-
+/*
+ * This function aims to get all the atom quantities and return the data to a 3 dimensional array.
+ * First two dimension determines the reactor core.
+ * The third dimension determines the atom type.
+ */
 extern double ***returnTotalAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config, double*** initial_quantities){
   unsigned long int a;
   size_t size = sizeof(a);
@@ -137,13 +162,13 @@ extern double ***returnTotalAtomQuantities(struct channel_struct ** reactor_core
   return total_proc_quantities;
 }
 
-extern void getAtomQuantities(struct fuel_assembly_struct * fuel_rod, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config, double** total_proc_quantities){
-  for(int k = 0; k < fuel_rod->num_pellets; k++){
-    for(int l = 0; l < 11; l++){
-      (*total_proc_quantities)[l] += fuel_rod->quantities[k][l]; 
-    }
-  }
-}
+// extern void getAtomQuantities(struct fuel_assembly_struct * fuel_rod, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config, double** total_proc_quantities){
+//   for(int k = 0; k < fuel_rod->num_pellets; k++){
+//     for(int l = 0; l < 11; l++){
+//       (*total_proc_quantities)[l] += fuel_rod->quantities[k][l]; 
+//     }
+//   }
+// }
 
 
 

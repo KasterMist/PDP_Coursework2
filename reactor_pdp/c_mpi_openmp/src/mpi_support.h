@@ -9,9 +9,9 @@ struct ProcConfig{
   int size;
   int rank;
   MPI_Comm comm;
-  int neutron_start;
-  int neutron_end;
   int neutron_num;
+  // int neutron_start;
+  // int neutron_end;
   // int reactor_x_start;
   // int reactor_x_end;
 };
@@ -27,7 +27,7 @@ extern double ***returnInitialAtomQuantities(struct channel_struct**, struct sim
 
 extern double ***returnTotalAtomQuantities(struct channel_struct**, struct simulation_configuration_struct*, struct ProcConfig, double***);
 
-extern void getAtomQuantities(struct fuel_assembly_struct*, struct simulation_configuration_struct*, struct ProcConfig, double**);
+// extern void getAtomQuantities(struct fuel_assembly_struct*, struct simulation_configuration_struct*, struct ProcConfig, double**);
 
 extern void free_matrix(double***, struct channel_struct**, struct simulation_configuration_struct*);
 

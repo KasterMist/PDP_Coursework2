@@ -89,7 +89,7 @@ int main(int argc, char * argv[]) {
   // Empty the file we will use to store the reactor state
   clearReactorStateFile(argv[2]);
 
-  proc_config.comm = MPI_COMM_WORLD;
+  // proc_config.comm = MPI_COMM_WORLD;
   // MPI_Comm comm = MPI_COMM_WORLD;
   // int size, rank;
   MPI_Init(&argc, &argv);
@@ -106,7 +106,7 @@ int main(int argc, char * argv[]) {
   // }
   // proc_config.neutron_num = proc_config.neutron_end - proc_config.neutron_start;
 
-  printf("process neutron num is %d \n", proc_config.neutron_num);
+  printf("process %d's neutron num is %d \n", proc_config.rank, proc_config.neutron_num);
   initialiseReactorCore(&configuration);
   initialiseNeutrons(&configuration, proc_config);
   
