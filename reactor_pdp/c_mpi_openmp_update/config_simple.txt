@@ -8,7 +8,8 @@ NUM_TIMESTEPS=10000
 # Frequency (in timesteps) to display progress
 DISPLAY_PROGRESS_FREQUENCY=100
 # Artificial maximum neutron limit
-MAX_NEUTRONS=1000000
+# MAX_NEUTRONS=1000000
+MAX_NEUTRONS=10800000
 # Artificial collision probability multiplier
 COLLISION_PROB_MULTIPLYER=1000
 # Frequency (in timesteps) to write reactor state to file

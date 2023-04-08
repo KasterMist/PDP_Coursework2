@@ -10,10 +10,6 @@ struct ProcConfig{
   int rank;
   MPI_Comm comm;
   int neutron_num;
-  // int neutron_start;
-  // int neutron_end;
-  // int reactor_x_start;
-  // int reactor_x_end;
 };
 
 
@@ -23,12 +19,20 @@ extern unsigned long int getTotalNumberActiveNeutrons(struct neutron_struct*, st
 
 extern unsigned long int getTotalNumFissions(struct channel_struct**, struct simulation_configuration_struct*, struct ProcConfig proc_config);
 
-extern double ***returnInitialAtomQuantities(struct channel_struct**, struct simulation_configuration_struct*, struct ProcConfig);
+extern double ****returnInitialAtomQuantities(struct channel_struct**, struct simulation_configuration_struct*, struct ProcConfig);
 
-extern double ***returnTotalAtomQuantities(struct channel_struct**, struct simulation_configuration_struct*, struct ProcConfig, double***);
+extern void synchronize_reactor_core(struct channel_struct *, struct simulation_configuration_struct* , struct ProcConfig proc_config, double**);
+
+extern double ***returnTotalAtomQuantities(struct channel_struct**, struct simulation_configuration_struct*, struct ProcConfig, double****);
 
 // extern void getAtomQuantities(struct fuel_assembly_struct*, struct simulation_configuration_struct*, struct ProcConfig, double**);
 
-extern void free_matrix(double***, struct channel_struct**, struct simulation_configuration_struct*);
+extern double ****returnEmptyAtomQuantities(struct channel_struct**, struct simulation_configuration_struct*, struct ProcConfig);
+
+extern void synchronize_quantities(struct channel_struct **, struct simulation_configuration_struct*, struct ProcConfig, double****, int, int);
+
+extern void free3dMatrix(double***, struct channel_struct**, struct simulation_configuration_struct*);
+
+extern void free4dMatrix(double ****, struct channel_struct **, struct simulation_configuration_struct*);
 
 #endif

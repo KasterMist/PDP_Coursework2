@@ -4,7 +4,7 @@
 DT=10
 # Total number of timesteps
 # NUM_TIMESTEPS=10000000
-NUM_TIMESTEPS=1001
+NUM_TIMESTEPS=10000
 # Frequency (in timesteps) to display progress
 DISPLAY_PROGRESS_FREQUENCY=100
 # Artificial maximum neutron limit

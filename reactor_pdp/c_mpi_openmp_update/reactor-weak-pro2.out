@@ -1,0 +1,112 @@
+Loading intel-compilers-19/19.0.0.117
+  Loading requirement: intel-license gcc/8.2.0 intel-cc-19/19.0.0.117
+    intel-fc-19/19.0.0.117
+srun: Warning: can't run 2 processes on 3 nodes, setting nnodes to 2
+
+process 0's neutron num is 100000 
+Simulation configured for reactor core of size 1m by 1m by 1m, timesteps=10000 dt=10ns
+------------------------------------------------------------------------------------------------
+Timestep: 100, model time is 1.000000e-06 secs, current runtime is 0.27 seconds. 200000 active neutrons, 68562 fissions, releasing 1.371240e+07 MeV and 2.193984e-06 Joules
+Timestep: 200, model time is 2.000000e-06 secs, current runtime is 0.52 seconds. 200000 active neutrons, 140138 fissions, releasing 2.802760e+07 MeV and 4.484416e-06 Joules
+Timestep: 300, model time is 3.000000e-06 secs, current runtime is 0.76 seconds. 200000 active neutrons, 212586 fissions, releasing 4.251720e+07 MeV and 6.802752e-06 Joules
+Timestep: 400, model time is 4.000000e-06 secs, current runtime is 1.00 seconds. 200000 active neutrons, 284922 fissions, releasing 5.698440e+07 MeV and 9.117504e-06 Joules
+Timestep: 500, model time is 5.000000e-06 secs, current runtime is 1.25 seconds. 200000 active neutrons, 356858 fissions, releasing 7.137160e+07 MeV and 1.141946e-05 Joules
+Timestep: 600, model time is 6.000000e-06 secs, current runtime is 1.49 seconds. 200000 active neutrons, 428984 fissions, releasing 8.579680e+07 MeV and 1.372749e-05 Joules
+Timestep: 700, model time is 7.000000e-06 secs, current runtime is 1.74 seconds. 200000 active neutrons, 500688 fissions, releasing 1.001376e+08 MeV and 1.602202e-05 Joules
+Timestep: 800, model time is 8.000000e-06 secs, current runtime is 1.98 seconds. 200000 active neutrons, 573324 fissions, releasing 1.146648e+08 MeV and 1.834637e-05 Joules
+Timestep: 900, model time is 9.000000e-06 secs, current runtime is 2.23 seconds. 200000 active neutrons, 645044 fissions, releasing 1.290088e+08 MeV and 2.064141e-05 Joules
+Timestep: 1000, model time is 1.000000e-05 secs, current runtime is 2.47 seconds. 200000 active neutrons, 717354 fissions, releasing 1.434708e+08 MeV and 2.295533e-05 Joules
+Timestep: 1100, model time is 1.100000e-05 secs, current runtime is 2.72 seconds. 200000 active neutrons, 788856 fissions, releasing 1.577712e+08 MeV and 2.524339e-05 Joules
+Timestep: 1200, model time is 1.200000e-05 secs, current runtime is 2.96 seconds. 200000 active neutrons, 860212 fissions, releasing 1.720424e+08 MeV and 2.752678e-05 Joules
+Timestep: 1300, model time is 1.300000e-05 secs, current runtime is 3.21 seconds. 200000 active neutrons, 931702 fissions, releasing 1.863404e+08 MeV and 2.981446e-05 Joules
+Timestep: 1400, model time is 1.400000e-05 secs, current runtime is 3.45 seconds. 200000 active neutrons, 1003612 fissions, releasing 2.007224e+08 MeV and 3.211558e-05 Joules
+Timestep: 1500, model time is 1.500000e-05 secs, current runtime is 3.70 seconds. 200000 active neutrons, 1075806 fissions, releasing 2.151612e+08 MeV and 3.442579e-05 Joules
+Timestep: 1600, model time is 1.600000e-05 secs, current runtime is 3.94 seconds. 200000 active neutrons, 1147904 fissions, releasing 2.295808e+08 MeV and 3.673293e-05 Joules
+Timestep: 1700, model time is 1.700000e-05 secs, current runtime is 4.19 seconds. 200000 active neutrons, 1219752 fissions, releasing 2.439504e+08 MeV and 3.903206e-05 Joules
+Timestep: 1800, model time is 1.800000e-05 secs, current runtime is 4.43 seconds. 200000 active neutrons, 1290794 fissions, releasing 2.581588e+08 MeV and 4.130541e-05 Joules
+Timestep: 1900, model time is 1.900000e-05 secs, current runtime is 4.68 seconds. 200000 active neutrons, 1363046 fissions, releasing 2.726092e+08 MeV and 4.361747e-05 Joules
+Timestep: 2000, model time is 2.000000e-05 secs, current runtime is 4.92 seconds. 200000 active neutrons, 1434196 fissions, releasing 2.868392e+08 MeV and 4.589427e-05 Joules
+Timestep: 2100, model time is 2.100000e-05 secs, current runtime is 5.17 seconds. 200000 active neutrons, 1505986 fissions, releasing 3.011972e+08 MeV and 4.819155e-05 Joules
+Timestep: 2200, model time is 2.200000e-05 secs, current runtime is 5.41 seconds. 200000 active neutrons, 1578114 fissions, releasing 3.156228e+08 MeV and 5.049965e-05 Joules
+Timestep: 2300, model time is 2.300000e-05 secs, current runtime is 5.66 seconds. 200000 active neutrons, 1650078 fissions, releasing 3.300156e+08 MeV and 5.280250e-05 Joules
+Timestep: 2400, model time is 2.400000e-05 secs, current runtime is 5.90 seconds. 200000 active neutrons, 1722310 fissions, releasing 3.444620e+08 MeV and 5.511392e-05 Joules
+Timestep: 2500, model time is 2.500000e-05 secs, current runtime is 6.15 seconds. 200000 active neutrons, 1793938 fissions, releasing 3.587876e+08 MeV and 5.740602e-05 Joules
+Timestep: 2600, model time is 2.600000e-05 secs, current runtime is 6.39 seconds. 200000 active neutrons, 1866384 fissions, releasing 3.732768e+08 MeV and 5.972429e-05 Joules
+Timestep: 2700, model time is 2.700000e-05 secs, current runtime is 6.64 seconds. 200000 active neutrons, 1938356 fissions, releasing 3.876712e+08 MeV and 6.202739e-05 Joules
+Timestep: 2800, model time is 2.800000e-05 secs, current runtime is 6.88 seconds. 200000 active neutrons, 2010780 fissions, releasing 4.021560e+08 MeV and 6.434496e-05 Joules
+Timestep: 2900, model time is 2.900000e-05 secs, current runtime is 7.13 seconds. 200000 active neutrons, 2082868 fissions, releasing 4.165736e+08 MeV and 6.665178e-05 Joules
+Timestep: 3000, model time is 3.000000e-05 secs, current runtime is 7.37 seconds. 200000 active neutrons, 2155104 fissions, releasing 4.310208e+08 MeV and 6.896333e-05 Joules
+Timestep: 3100, model time is 3.100000e-05 secs, current runtime is 7.62 seconds. 200000 active neutrons, 2226928 fissions, releasing 4.453856e+08 MeV and 7.126170e-05 Joules
+Timestep: 3200, model time is 3.200000e-05 secs, current runtime is 7.86 seconds. 200000 active neutrons, 2298750 fissions, releasing 4.597500e+08 MeV and 7.356000e-05 Joules
+Timestep: 3300, model time is 3.300000e-05 secs, current runtime is 8.11 seconds. 200000 active neutrons, 2370124 fissions, releasing 4.740248e+08 MeV and 7.584397e-05 Joules
+Timestep: 3400, model time is 3.400000e-05 secs, current runtime is 8.35 seconds. 200000 active neutrons, 2441816 fissions, releasing 4.883632e+08 MeV and 7.813811e-05 Joules
+Timestep: 3500, model time is 3.500000e-05 secs, current runtime is 8.60 seconds. 200000 active neutrons, 2513126 fissions, releasing 5.026252e+08 MeV and 8.042003e-05 Joules
+Timestep: 3600, model time is 3.600000e-05 secs, current runtime is 8.84 seconds. 200000 active neutrons, 2585902 fissions, releasing 5.171804e+08 MeV and 8.274886e-05 Joules
+Timestep: 3700, model time is 3.700000e-05 secs, current runtime is 9.09 seconds. 200000 active neutrons, 2657750 fissions, releasing 5.315500e+08 MeV and 8.504800e-05 Joules
+Timestep: 3800, model time is 3.800000e-05 secs, current runtime is 9.33 seconds. 200000 active neutrons, 2729262 fissions, releasing 5.458524e+08 MeV and 8.733638e-05 Joules
+Timestep: 3900, model time is 3.900000e-05 secs, current runtime is 9.58 seconds. 200000 active neutrons, 2800706 fissions, releasing 5.601412e+08 MeV and 8.962259e-05 Joules
+Timestep: 4000, model time is 4.000000e-05 secs, current runtime is 9.82 seconds. 200000 active neutrons, 2871590 fissions, releasing 5.743180e+08 MeV and 9.189088e-05 Joules
+Timestep: 4100, model time is 4.100000e-05 secs, current runtime is 10.07 seconds. 200000 active neutrons, 2943244 fissions, releasing 5.886488e+08 MeV and 9.418381e-05 Joules
+Timestep: 4200, model time is 4.200000e-05 secs, current runtime is 10.31 seconds. 200000 active neutrons, 3014928 fissions, releasing 6.029856e+08 MeV and 9.647770e-05 Joules
+Timestep: 4300, model time is 4.300000e-05 secs, current runtime is 10.56 seconds. 200000 active neutrons, 3086470 fissions, releasing 6.172940e+08 MeV and 9.876704e-05 Joules
+Timestep: 4400, model time is 4.400000e-05 secs, current runtime is 10.80 seconds. 200000 active neutrons, 3158726 fissions, releasing 6.317452e+08 MeV and 1.010792e-04 Joules
+Timestep: 4500, model time is 4.500000e-05 secs, current runtime is 11.05 seconds. 200000 active neutrons, 3230986 fissions, releasing 6.461972e+08 MeV and 1.033916e-04 Joules
+Timestep: 4600, model time is 4.600000e-05 secs, current runtime is 11.29 seconds. 200000 active neutrons, 3302980 fissions, releasing 6.605960e+08 MeV and 1.056954e-04 Joules
+Timestep: 4700, model time is 4.700000e-05 secs, current runtime is 11.54 seconds. 200000 active neutrons, 3374114 fissions, releasing 6.748228e+08 MeV and 1.079716e-04 Joules
+Timestep: 4800, model time is 4.800000e-05 secs, current runtime is 11.78 seconds. 200000 active neutrons, 3446132 fissions, releasing 6.892264e+08 MeV and 1.102762e-04 Joules
+Timestep: 4900, model time is 4.900000e-05 secs, current runtime is 12.03 seconds. 200000 active neutrons, 3518368 fissions, releasing 7.036736e+08 MeV and 1.125878e-04 Joules
+Timestep: 5000, model time is 5.000000e-05 secs, current runtime is 12.27 seconds. 200000 active neutrons, 3590254 fissions, releasing 7.180508e+08 MeV and 1.148881e-04 Joules
+Timestep: 5100, model time is 5.100000e-05 secs, current runtime is 12.52 seconds. 200000 active neutrons, 3662230 fissions, releasing 7.324460e+08 MeV and 1.171914e-04 Joules
+Timestep: 5200, model time is 5.200000e-05 secs, current runtime is 12.76 seconds. 200000 active neutrons, 3734622 fissions, releasing 7.469244e+08 MeV and 1.195079e-04 Joules
+Timestep: 5300, model time is 5.300000e-05 secs, current runtime is 13.01 seconds. 200000 active neutrons, 3806502 fissions, releasing 7.613004e+08 MeV and 1.218081e-04 Joules
+Timestep: 5400, model time is 5.400000e-05 secs, current runtime is 13.25 seconds. 200000 active neutrons, 3878978 fissions, releasing 7.757956e+08 MeV and 1.241273e-04 Joules
+Timestep: 5500, model time is 5.500000e-05 secs, current runtime is 13.50 seconds. 200000 active neutrons, 3950908 fissions, releasing 7.901816e+08 MeV and 1.264291e-04 Joules
+Timestep: 5600, model time is 5.600000e-05 secs, current runtime is 13.74 seconds. 200000 active neutrons, 4023078 fissions, releasing 8.046156e+08 MeV and 1.287385e-04 Joules
+Timestep: 5700, model time is 5.700000e-05 secs, current runtime is 13.99 seconds. 200000 active neutrons, 4094746 fissions, releasing 8.189492e+08 MeV and 1.310319e-04 Joules
+Timestep: 5800, model time is 5.800000e-05 secs, current runtime is 14.23 seconds. 200000 active neutrons, 4167220 fissions, releasing 8.334440e+08 MeV and 1.333510e-04 Joules
+Timestep: 5900, model time is 5.900000e-05 secs, current runtime is 14.48 seconds. 200000 active neutrons, 4239344 fissions, releasing 8.478688e+08 MeV and 1.356590e-04 Joules
+Timestep: 6000, model time is 6.000000e-05 secs, current runtime is 14.72 seconds. 200000 active neutrons, 4311328 fissions, releasing 8.622656e+08 MeV and 1.379625e-04 Joules
+Timestep: 6100, model time is 6.100000e-05 secs, current runtime is 15.05 seconds. 200000 active neutrons, 4383080 fissions, releasing 8.766160e+08 MeV and 1.402586e-04 Joules
+Timestep: 6200, model time is 6.200000e-05 secs, current runtime is 15.31 seconds. 200000 active neutrons, 4455114 fissions, releasing 8.910228e+08 MeV and 1.425636e-04 Joules
+Timestep: 6300, model time is 6.300000e-05 secs, current runtime is 15.55 seconds. 200000 active neutrons, 4527190 fissions, releasing 9.054380e+08 MeV and 1.448701e-04 Joules
+Timestep: 6400, model time is 6.400000e-05 secs, current runtime is 15.80 seconds. 200000 active neutrons, 4598442 fissions, releasing 9.196884e+08 MeV and 1.471501e-04 Joules
+Timestep: 6500, model time is 6.500000e-05 secs, current runtime is 16.04 seconds. 200000 active neutrons, 4669474 fissions, releasing 9.338948e+08 MeV and 1.494232e-04 Joules
+Timestep: 6600, model time is 6.600000e-05 secs, current runtime is 16.29 seconds. 200000 active neutrons, 4741782 fissions, releasing 9.483564e+08 MeV and 1.517370e-04 Joules
+Timestep: 6700, model time is 6.700000e-05 secs, current runtime is 16.53 seconds. 200000 active neutrons, 4813370 fissions, releasing 9.626740e+08 MeV and 1.540278e-04 Joules
+Timestep: 6800, model time is 6.800000e-05 secs, current runtime is 16.78 seconds. 200000 active neutrons, 4884944 fissions, releasing 9.769888e+08 MeV and 1.563182e-04 Joules
+Timestep: 6900, model time is 6.900000e-05 secs, current runtime is 17.02 seconds. 200000 active neutrons, 4955752 fissions, releasing 9.911504e+08 MeV and 1.585841e-04 Joules
+Timestep: 7000, model time is 7.000000e-05 secs, current runtime is 17.26 seconds. 200000 active neutrons, 5027380 fissions, releasing 1.005476e+09 MeV and 1.608762e-04 Joules
+Timestep: 7100, model time is 7.100000e-05 secs, current runtime is 17.53 seconds. 200000 active neutrons, 5098974 fissions, releasing 1.019795e+09 MeV and 1.631672e-04 Joules
+Timestep: 7200, model time is 7.200000e-05 secs, current runtime is 17.79 seconds. 200000 active neutrons, 5171186 fissions, releasing 1.034237e+09 MeV and 1.654780e-04 Joules
+Timestep: 7300, model time is 7.300000e-05 secs, current runtime is 18.04 seconds. 200000 active neutrons, 5242966 fissions, releasing 1.048593e+09 MeV and 1.677749e-04 Joules
+Timestep: 7400, model time is 7.400000e-05 secs, current runtime is 18.29 seconds. 200000 active neutrons, 5314536 fissions, releasing 1.062907e+09 MeV and 1.700652e-04 Joules
+Timestep: 7500, model time is 7.500000e-05 secs, current runtime is 18.53 seconds. 200000 active neutrons, 5386226 fissions, releasing 1.077245e+09 MeV and 1.723592e-04 Joules
+Timestep: 7600, model time is 7.600000e-05 secs, current runtime is 18.78 seconds. 200000 active neutrons, 5458060 fissions, releasing 1.091612e+09 MeV and 1.746579e-04 Joules
+Timestep: 7700, model time is 7.700000e-05 secs, current runtime is 19.02 seconds. 200000 active neutrons, 5531046 fissions, releasing 1.106209e+09 MeV and 1.769935e-04 Joules
+Timestep: 7800, model time is 7.800000e-05 secs, current runtime is 19.27 seconds. 200000 active neutrons, 5603020 fissions, releasing 1.120604e+09 MeV and 1.792966e-04 Joules
+Timestep: 7900, model time is 7.900000e-05 secs, current runtime is 19.51 seconds. 200000 active neutrons, 5675276 fissions, releasing 1.135055e+09 MeV and 1.816088e-04 Joules
+Timestep: 8000, model time is 8.000000e-05 secs, current runtime is 19.76 seconds. 200000 active neutrons, 5747074 fissions, releasing 1.149415e+09 MeV and 1.839064e-04 Joules
+Timestep: 8100, model time is 8.100000e-05 secs, current runtime is 20.01 seconds. 200000 active neutrons, 5818300 fissions, releasing 1.163660e+09 MeV and 1.861856e-04 Joules
+Timestep: 8200, model time is 8.200000e-05 secs, current runtime is 20.25 seconds. 200000 active neutrons, 5890412 fissions, releasing 1.178082e+09 MeV and 1.884932e-04 Joules
+Timestep: 8300, model time is 8.300000e-05 secs, current runtime is 20.50 seconds. 200000 active neutrons, 5962380 fissions, releasing 1.192476e+09 MeV and 1.907962e-04 Joules
+Timestep: 8400, model time is 8.400000e-05 secs, current runtime is 20.74 seconds. 200000 active neutrons, 6033688 fissions, releasing 1.206738e+09 MeV and 1.930780e-04 Joules
+Timestep: 8500, model time is 8.500000e-05 secs, current runtime is 20.99 seconds. 200000 active neutrons, 6105424 fissions, releasing 1.221085e+09 MeV and 1.953736e-04 Joules
+Timestep: 8600, model time is 8.600000e-05 secs, current runtime is 21.23 seconds. 200000 active neutrons, 6177224 fissions, releasing 1.235445e+09 MeV and 1.976712e-04 Joules
+Timestep: 8700, model time is 8.700000e-05 secs, current runtime is 21.48 seconds. 200000 active neutrons, 6249732 fissions, releasing 1.249946e+09 MeV and 1.999914e-04 Joules
+Timestep: 8800, model time is 8.800000e-05 secs, current runtime is 21.72 seconds. 200000 active neutrons, 6321600 fissions, releasing 1.264320e+09 MeV and 2.022912e-04 Joules
+Timestep: 8900, model time is 8.900000e-05 secs, current runtime is 21.97 seconds. 200000 active neutrons, 6393662 fissions, releasing 1.278732e+09 MeV and 2.045972e-04 Joules
+Timestep: 9000, model time is 9.000000e-05 secs, current runtime is 22.21 seconds. 200000 active neutrons, 6465806 fissions, releasing 1.293161e+09 MeV and 2.069058e-04 Joules
+Timestep: 9100, model time is 9.100000e-05 secs, current runtime is 22.48 seconds. 200000 active neutrons, 6538036 fissions, releasing 1.307607e+09 MeV and 2.092172e-04 Joules
+Timestep: 9200, model time is 9.200000e-05 secs, current runtime is 22.72 seconds. 200000 active neutrons, 6609774 fissions, releasing 1.321955e+09 MeV and 2.115128e-04 Joules
+Timestep: 9300, model time is 9.300000e-05 secs, current runtime is 22.96 seconds. 200000 active neutrons, 6682114 fissions, releasing 1.336423e+09 MeV and 2.138276e-04 Joules
+Timestep: 9400, model time is 9.400000e-05 secs, current runtime is 23.21 seconds. 200000 active neutrons, 6753088 fissions, releasing 1.350618e+09 MeV and 2.160988e-04 Joules
+Timestep: 9500, model time is 9.500000e-05 secs, current runtime is 23.45 seconds. 200000 active neutrons, 6825454 fissions, releasing 1.365091e+09 MeV and 2.184145e-04 Joules
+Timestep: 9600, model time is 9.600000e-05 secs, current runtime is 23.70 seconds. 200000 active neutrons, 6897454 fissions, releasing 1.379491e+09 MeV and 2.207185e-04 Joules
+Timestep: 9700, model time is 9.700000e-05 secs, current runtime is 23.94 seconds. 200000 active neutrons, 6969006 fissions, releasing 1.393801e+09 MeV and 2.230082e-04 Joules
+Timestep: 9800, model time is 9.800000e-05 secs, current runtime is 24.19 seconds. 200000 active neutrons, 7040210 fissions, releasing 1.408042e+09 MeV and 2.252867e-04 Joules
+Timestep: 9900, model time is 9.900000e-05 secs, current runtime is 24.43 seconds. 200000 active neutrons, 7112236 fissions, releasing 1.422447e+09 MeV and 2.275916e-04 Joules
+------------------------------------------------------------------------------------------------
+Model completed after 10000 timesteps
+Total model time: 0.000100 secs
+Total fissions: 7183126 releasing 1.436625e+09 MeV and 2.298600e-04 Joules
+Total runtime: 24.68 seconds

@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Slurm job options (name, compute nodes, job time)
-#SBATCH --job-name=automaton
+#SBATCH --job-name=reactor
 #SBATCH --time=0:30:0
 #SBATCH --exclusive
-#SBATCH --nodes=1
+#SBATCH --nodes=3
 
 
 
@@ -29,9 +29,16 @@ module load intel-compilers-19
 cd $SLURM_SUBMIT_DIR
 
 
+# mpi_list=(1 4 8 12 16 20 24 28 32 36)
+# mpi_list2=(40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100 104 108)
+# for process_num in ${mpi_list[@]}
+# do
+#   echo "Process = $process_num"
+#   srun --unbuffered --cpu-bind=core -n $process_num ./reactor config_simple.txt output_100syn-add.txt
+# done
 
+echo "32"
+srun -n 32 ./reactor config_simple.txt output_1syn-add.txt
 
-
-srun --unbuffered --cpu-bind=core -n 2 ./reactor config_simple.txt output.txt 1234
 
 

@@ -45,13 +45,14 @@ struct channel_struct ** reactor_core;
 
 struct ProcConfig proc_config;
 
-double ****initial_quantities;
+double **** initial_quantities;
+double **** modified_quantities;
 
 static void step(int, struct simulation_configuration_struct*, struct ProcConfig);
 static void generateReport(int, int, struct simulation_configuration_struct*, struct timeval, struct ProcConfig);
 static void updateReactorCore(int, struct simulation_configuration_struct*, struct ProcConfig);
 static void updateNeutrons(int, struct simulation_configuration_struct*, struct ProcConfig);
-static void updateFuelAssembly(int, struct channel_struct*);
+static void updateFuelAssembly(int, struct channel_struct*, int, int);
 static void updateNeutronGenerator(int, struct channel_struct*, struct simulation_configuration_struct*);
 static void createNeutrons(int, struct channel_struct*, double);
 static void initialiseReactorCore(struct simulation_configuration_struct*);
@@ -107,11 +108,7 @@ int main(int argc, char * argv[]) {
   initialiseNeutrons(&configuration, proc_config);
   
   initial_quantities = returnInitialAtomQuantities(reactor_core, &configuration, proc_config);
-
-  // if(proc_config.rank == 0){ 
-  //       printf("initial is %f\n", initial_quantities[0][0][0][0]);
-  //       // printf("reactor_core[0][0].contents.fuel_assembly.quantities[0][0] is %f\n", reactor_core[0][0].contents.fuel_assembly.quantities[0][0]);
-  // }
+  modified_quantities = returnEmptyAtomQuantities(reactor_core, &configuration, proc_config);
 
 
   if(proc_config.rank == 0){
@@ -123,27 +120,16 @@ int main(int argc, char * argv[]) {
 
   for (int i=0;i<configuration.num_timesteps;i++) {
     // Progress in timesteps
-    
+
     step(configuration.dt, &configuration, proc_config);
-
-    
-    synchronize_quantities(reactor_core, &configuration, proc_config, initial_quantities, 100, i);
-    
-    
-    // if(proc_config.rank == 0){
-    //   printf("%d\n", i);
-    // }
-
-    
+ 
+    synchronize_and_update(reactor_core, &configuration, proc_config, initial_quantities, modified_quantities, 100, i);
     
     if (i > 0 && i % configuration.display_progess_frequency == 0) {
-
-      // synchronize_quantities(reactor_core, &configuration, proc_config, initial_quantities);
       generateReport(configuration.dt, i, &configuration, start_time, proc_config);
     }
     
     if (i > 0 && i % configuration.write_reactor_state_frequency == 0) {
-
       writeReactorState(&configuration, i, argv[2], proc_config);
     }
   }
@@ -207,12 +193,11 @@ static void updateReactorCore(int dt, struct simulation_configuration_struct * c
     for (int j=0;j<configuration->channels_y;j++) {
 
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
-        updateFuelAssembly(dt, &(reactor_core[i][j]));
+        updateFuelAssembly(dt, &(reactor_core[i][j]), i, j);
       }
 
       
       if (reactor_core[i][j].type == NEUTRON_GENERATOR) {
-        // #pragma omp critical
         updateNeutronGenerator(dt, &(reactor_core[i][j]), configuration);
       }
       
@@ -267,19 +252,23 @@ static void updateNeutrons(int dt, struct simulation_configuration_struct * conf
 
       // Now figure out if neutron is in a fuel assembly, moderator or control rod. If so then need to handle interaction
       struct channel_struct* reactorChannel=locateChannelFromPosition(neutrons[i].pos_x, neutrons[i].pos_y, configuration);
+      int channel_x=(int) (neutrons[i].pos_x/0.2);
+      int channel_y=(int) (neutrons[i].pos_y/0.2); 
       if (reactorChannel != NULL) {
         if (reactorChannel->type == FUEL_ASSEMBLY) {
           // It is in a fuel assembly channel, determine if it has collided with a neutron and if so deactivate it
           int fuel_pellet=(int) (neutrons[i].pos_z / HEIGHT_FUEL_PELLET_M);
           if (fuel_pellet < reactorChannel->contents.fuel_assembly.num_pellets) {
-            bool collision=determineAndHandleIfNeutronFuelCollision(neutrons[i].energy, reactorChannel, fuel_pellet, configuration->collision_prob_multiplyer);
-            if (collision) {
 
+            int channel_x=(int) (neutrons[i].pos_x/0.2);
+            int channel_y=(int) (neutrons[i].pos_y/0.2);
+            bool collision=determineAndHandleIfNeutronFuelCollision(neutrons[i].energy, reactorChannel, configuration->collision_prob_multiplyer, modified_quantities, channel_x, channel_y, fuel_pellet);
+            if (collision) {
               neutrons[i].active=false;
               neutron_index[currentNeutronIndex]=i;
               currentNeutronIndex++;
-              
             }
+            
           }
         }
 
@@ -297,9 +286,6 @@ static void updateNeutrons(int dt, struct simulation_configuration_struct * conf
 
         if (reactorChannel->type == CONTROL_ROD) {
           if (neutrons[i].pos_z <= reactorChannel->contents.control_rod.lowered_to_level) {
-            // neutrons[i].active=false;
-            // neutron_index[currentNeutronIndex]=i;
-            // currentNeutronIndex++;
             // Has hit the control rod, therefore this absorbed and removed from simulation
 
             neutrons[i].active=false;
@@ -320,7 +306,7 @@ static void updateNeutrons(int dt, struct simulation_configuration_struct * conf
  * Update the state of a specific fuel assembly in a channel for a timestep. This will fission all U236
  * and Pu239 in the assembly and update the constituent components as required
  **/
-static void updateFuelAssembly(int dt, struct channel_struct * channel) {
+static void updateFuelAssembly(int dt, struct channel_struct * channel, int channel_x, int channel_y) {
 
   unsigned long int increment_num_fissions = 0;
 
@@ -328,24 +314,21 @@ static void updateFuelAssembly(int dt, struct channel_struct * channel) {
   for (int i=0;i<channel->contents.fuel_assembly.num_pellets;i++) {
     unsigned long int num_u236=(unsigned long int) channel->contents.fuel_assembly.quantities[i][U236];
     for (unsigned long int j=0;j<num_u236;j++) {
-      int num_neutrons=fissionU236(channel, i);
-      // #pragma omp critical
+      int num_neutrons=fissionU236(channel, modified_quantities, channel_x, channel_y, i);
+      
       createNeutrons(num_neutrons, channel, (i*HEIGHT_FUEL_PELLET_M)+(HEIGHT_FUEL_PELLET_M/2));
       
-      // increment_num_fissions++; 
       channel->contents.fuel_assembly.num_fissions++;
     }
     unsigned long int num_pu240=(unsigned long int) channel->contents.fuel_assembly.quantities[i][Pu240];
     for (unsigned long int j=0;j<num_pu240;j++) {
-      int num_neutrons=fissionPu240(channel, i);
-      // #pragma omp critical
-      createNeutrons(num_neutrons, channel, (i*HEIGHT_FUEL_PELLET_M)+(HEIGHT_FUEL_PELLET_M/2));
+      int num_neutrons=fissionPu240(channel, modified_quantities, channel_x, channel_y, i);
       
-      // increment_num_fissions++;
+      createNeutrons(num_neutrons, channel, (i*HEIGHT_FUEL_PELLET_M)+(HEIGHT_FUEL_PELLET_M/2));
+
       channel->contents.fuel_assembly.num_fissions++;
     }
   }
-  // channel->contents.fuel_assembly.num_fissions += increment_num_fissions; 
 }
 
 /**
@@ -381,7 +364,6 @@ static void createNeutrons(int num_neutrons, struct channel_struct * channel, do
 static void initialiseReactorCore(struct simulation_configuration_struct * simulation_configuration) {
   reactor_core=(struct channel_struct**) malloc(sizeof(struct channel_struct*)*simulation_configuration->channels_x);
   
-  // #pragma omp parallel for shared(reactor_core)
   for (int i=0;i<simulation_configuration->channels_x;i++) {
     reactor_core[i]=(struct channel_struct*) malloc(sizeof(struct channel_struct)*simulation_configuration->channels_y);
     
@@ -434,8 +416,7 @@ static void initialiseReactorCore(struct simulation_configuration_struct * simul
                 fprintf(stderr, "Unknown chemical at index '%d'\n", k);
                 exit(-1);
               }
-              reactor_core[i][j].contents.fuel_assembly.quantities[z][k]=getAtomsPerGram(chemical) * (simulation_configuration->fuel_makeup_percentage[k] / 100.0);
-              // original_quantities[i][j][k] += reactor_core[i][j].contents.fuel_assembly.quantities[z][k]; 
+              reactor_core[i][j].contents.fuel_assembly.quantities[z][k]=getAtomsPerGram(chemical) * (simulation_configuration->fuel_makeup_percentage[k] / 100.0); 
             }
           }
         } else if (simulation_configuration->channel_layout_config[i][j]==CONFIG_CONTROL_ROD) {
@@ -504,8 +485,8 @@ static void writeReactorState(struct simulation_configuration_struct * configura
   total_num_fissions = getTotalNumFissions(reactor_core, configuration, proc_config);
   
   
-  // double ***total_quantities;
-  // total_quantities = returnTotalAtomQuantities(reactor_core, configuration, proc_config, initial_quantities);
+  double ***total_quantities;
+  total_quantities = returnTotalAtomQuantities(reactor_core, configuration, proc_config, initial_quantities);
   
 
   if(proc_config.rank == 0){
@@ -518,12 +499,12 @@ static void writeReactorState(struct simulation_configuration_struct * configura
       for (int j=0;j<configuration->channels_y;j++) {
         if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
         
-          // fprintf(f, "Fuel assembly %d %d, %e U235 %e U238 %e Pu239 %e U236 %e Ba141 %e Kr92 %e Xe140 %e Sr94 %e Xe134 %e Zr103 %e Pu240\n",
-          // i, j, total_quantities[i][j][0], total_quantities[i][j][1], total_quantities[i][j][2], total_quantities[i][j][3], total_quantities[i][j][4], total_quantities[i][j][5], total_quantities[i][j][6], total_quantities[i][j][7], total_quantities[i][j][8], total_quantities[i][j][9], total_quantities[i][j][10]);
-          double pc[11];
-          getFuelAssemblyChemicalContents(&(reactor_core[i][j].contents.fuel_assembly), pc);
           fprintf(f, "Fuel assembly %d %d, %e U235 %e U238 %e Pu239 %e U236 %e Ba141 %e Kr92 %e Xe140 %e Sr94 %e Xe134 %e Zr103 %e Pu240\n",
-          i, j, pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7], pc[8], pc[9], pc[10]);
+          i, j, total_quantities[i][j][0], total_quantities[i][j][1], total_quantities[i][j][2], total_quantities[i][j][3], total_quantities[i][j][4], total_quantities[i][j][5], total_quantities[i][j][6], total_quantities[i][j][7], total_quantities[i][j][8], total_quantities[i][j][9], total_quantities[i][j][10]);
+          // double pc[11];
+          // getFuelAssemblyChemicalContents(&(reactor_core[i][j].contents.fuel_assembly), pc);
+          // fprintf(f, "Fuel assembly %d %d, %e U235 %e U238 %e Pu239 %e U236 %e Ba141 %e Kr92 %e Xe140 %e Sr94 %e Xe134 %e Zr103 %e Pu240\n",
+          // i, j, pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7], pc[8], pc[9], pc[10]);
         }
       }
     }

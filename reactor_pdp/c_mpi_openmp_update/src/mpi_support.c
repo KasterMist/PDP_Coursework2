@@ -36,7 +36,6 @@ void MPI_Initialize(struct simulation_configuration_struct* configuration, struc
 unsigned long int getTotalNumberActiveNeutrons(struct neutron_struct *neutrons, struct ProcConfig proc_config) {
   unsigned long int activeNeutrons=0;
 
-  // #pragma omp parallel for default(none) firstprivate(proc_config, neutrons) reduction(+:activeNeutrons)
   for (unsigned long int i=0;i<proc_config.neutron_num;i++) {
     if (neutrons[i].active) activeNeutrons++;
   }
@@ -66,10 +65,10 @@ extern unsigned long int getTotalNumFissions(struct channel_struct ** reactor_co
  * This function is to create an empty 4-dimensional array which is used to store atom quantities.
  * The value of each atom quantities is set 0.
  */
-extern double ****returnEmptyAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){
+extern double **** returnEmptyAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){
   
-  double**** empty_quantities = (double ****)malloc(configuration->channels_x * sizeof(double ***));
-  // #pragma omp parallel for default(none) shared(empty_quantities) firstprivate(configuration, reactor_core)
+  double **** empty_quantities = (double ****)malloc(configuration->channels_x * sizeof(double ***));
+  
   for (int i = 0; i < configuration->channels_x; i++) {
     empty_quantities[i] = (double ***)malloc(configuration->channels_y * sizeof(double **));
     for (int j = 0; j < configuration->channels_y; j++) {
@@ -77,6 +76,8 @@ extern double ****returnEmptyAtomQuantities(struct channel_struct ** reactor_cor
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
 
         empty_quantities[i][j] = (double **)malloc(reactor_core[i][j].contents.fuel_assembly.num_pellets * sizeof(double *));
+
+        #pragma omp parallel for default(none) shared(empty_quantities) firstprivate(reactor_core, i, j)
         for (int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++) {
           empty_quantities[i][j][k] = (double *)malloc(NUM_CHEMICALS * sizeof(double)); 
           for(int l = 0; l < NUM_CHEMICALS; l++){
@@ -96,17 +97,17 @@ extern double ****returnEmptyAtomQuantities(struct channel_struct ** reactor_cor
  * This function is to get the atom quantities of the initial reactors.
  * It is called after running initialiseReactorCore function.
  */
-extern double ****returnInitialAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){
+extern double **** returnInitialAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){
 
-  double ****initial_quantities = returnEmptyAtomQuantities(reactor_core, configuration, proc_config);
+  double **** initial_quantities = returnEmptyAtomQuantities(reactor_core, configuration, proc_config);
 
-  // #pragma omp parallel for default(none) firstprivate(configuration, reactor_core) shared(initial_quantities)
+  
   for (int i = 0; i < configuration->channels_x; i++) {
     
     for (int j = 0; j < configuration->channels_y; j++) {  
       
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
-        // getAtomQuantities(&reactor_core[i][j].contents.fuel_assembly, configuration, proc_config, &initial_quantities[i][j]);
+        #pragma omp parallel for default(none) firstprivate(reactor_core, i, j) shared(initial_quantities)
         for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
           for(int l = 0; l < 11; l++){
             initial_quantities[i][j][k][l] = reactor_core[i][j].contents.fuel_assembly.quantities[k][l]; 
@@ -118,63 +119,73 @@ extern double ****returnInitialAtomQuantities(struct channel_struct ** reactor_c
   return initial_quantities;
 }
 
+
 /*
- * This function is to synchronize different channels' atom quantities in different processes.
+ * This function aims to create a 3 dimensional array which stores the modified U235.
+ * It is not used in the main function.
  */
-extern void synchronize_quantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config, double**** initial_quantities, int frequency, int current_step){
-  // double modified_2dim[500][NUM_CHEMICALS];
+extern double *** setInitialModifiedU235(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config){
+
+
+  double *** modified_U235 = (double ***)malloc(configuration->channels_x * sizeof(double **));
+  for (int i = 0; i < configuration->channels_x; i++) {
+    modified_U235[i] = (double **)malloc(configuration->channels_y * sizeof(double *));
+    for (int j = 0; j < configuration->channels_y; j++) {
+
+      if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
+
+        modified_U235[i][j] = (double *)malloc(reactor_core[i][j].contents.fuel_assembly.num_pellets * sizeof(double));
+        #pragma omp parallel for default(none) firstprivate(reactor_core, i, j) shared(modified_U235)
+        for (int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++) {
+          modified_U235[i][j][k] = 0.0;
+        }
+      }
+    }
+  }
+  return modified_U235;
+}
+
+/*
+ * This function is to synchronize U235 and update the other atoms.
+ * The U235 will be synchronized to each process. Other atoms will be updated to the reactor core in each process.
+ */
+extern void synchronize_and_update(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config, double**** initial_quantities, double**** modified_quantities, int frequency, int current_step){
   
   if(current_step % frequency == 0){
     for (int i=0;i<configuration->channels_x;i++) {
       for (int j=0;j<configuration->channels_y;j++) {
         if(reactor_core[i][j].type == FUEL_ASSEMBLY){
-          double total_2dim[reactor_core[i][j].contents.fuel_assembly.num_pellets][NUM_CHEMICALS];
-          // for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
-          //   for(int l = 0; l < 11; l++){
-          //     modified_2dim[k][l] = reactor_core[i][j].contents.fuel_assembly.quantities[k][l] - initial_quantities[i][j][k][l]; 
-          //     // modified_2dim[k][l] = reactor_core[i][j].contents.fuel_assembly.quantities[k][l]; 
-          //   }
-          // }
-          // MPI_Allreduce(&modified_2dim, &total_2dim, reactor_core[i][j].contents.fuel_assembly.num_pellets*11, MPI_DOUBLE, MPI_SUM, proc_config.comm);  
-          MPI_Allreduce(reactor_core[i][j].contents.fuel_assembly.quantities, total_2dim, reactor_core[i][j].contents.fuel_assembly.num_pellets*NUM_CHEMICALS, MPI_DOUBLE, MPI_SUM, proc_config.comm); 
-          // if(proc_config.rank == 0 & i == 0 & j == 0) printf("%f\n", total_2dim[0][0]);
-          // MPI_Allreduce(reactor_core[i][j].contents.fuel_assembly.quantities, reactor_core[i][j].contents.fuel_assembly.quantities, reactor_core[i][j].contents.fuel_assembly.num_pellets*NUM_CHEMICALS, MPI_DOUBLE, MPI_SUM, proc_config.comm);  
+          double modified_U235[reactor_core[i][j].contents.fuel_assembly.num_pellets];
+          double total_modified_U235[reactor_core[i][j].contents.fuel_assembly.num_pellets];
+
+          // Update the modified atoms to the reactor core
+          #pragma omp parallel for default(none) firstprivate(i, j) shared(modified_U235, modified_quantities, reactor_core)
           for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
             for(int l = 0; l < 11; l++){
-              // if(proc_config.rank == 0) printf("%f\n", total_2dim[k][l]);
-              // reactor_core[i][j].contents.fuel_assembly.quantities[k][l] = initial_quantities[i][j][k][l] + total_2dim[k][l];
-              
-              reactor_core[i][j].contents.fuel_assembly.quantities[k][l] = total_2dim[k][l] - (proc_config.size - 1) * initial_quantities[i][j][k][l];
-              // reactor_core[i][j].contents.fuel_assembly.quantities[k][l] = reactor_core[i][j].contents.fuel_assembly.quantities[k][l] - (proc_config.size - 1) * initial_quantities[i][j][k][l];  
-              initial_quantities[i][j][k][l] = reactor_core[i][j].contents.fuel_assembly.quantities[k][l]; 
+              if(l == Ba141 | l == Kr92 | l == Xe140 | l == Sr94 | l == Xe134 | l == Zr103){
+                reactor_core[i][j].contents.fuel_assembly.quantities[k][l] += modified_quantities[i][j][k][l];
+                modified_quantities[i][j][k][l] = 0.0;
+                
+              }else if(l == U235){
+                modified_U235[k] =  modified_quantities[i][j][k][l];
+                modified_quantities[i][j][k][l] = 0.0;
+              }
+
             }
+          }
+          // Synchronize the U235 quantities to all of the processes.
+          MPI_Allreduce(&modified_U235, &total_modified_U235, reactor_core[i][j].contents.fuel_assembly.num_pellets, MPI_DOUBLE, MPI_SUM, proc_config.comm);  
+          #pragma omp parallel for default(none) firstprivate(modified_U235, i, j) shared(reactor_core)
+          for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
+            reactor_core[i][j].contents.fuel_assembly.quantities[k][U235] += modified_U235[k];
           }
         }
         
       }
     }
   }
-    
-  // initial_quantities = returnInitialAtomQuantities(reactor_core, configuration, proc_config);
 
-  // for (int i=0;i<configuration->channels_x;i++) {
-  //   for (int j=0;j<configuration->channels_y;j++) {
-  //     if(reactor_core[i][j].type == FUEL_ASSEMBLY){
-  //       for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
-  //         for(int l = 0; l < 11; l++){
-  //           reactor_core[i][j].contents.fuel_assembly.quantities[k][l] = initial_quantities[i][j][k][l] + total_2dim[k][l];
-  //           // reactor_core[i][j].contents.fuel_assembly.quantities[k][l] = total_2dim[k][l] - (proc_config.size - 1) * initial_quantities[i][j][k][l];  
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
-
-  
 }
-
-
-
 
 
 /*
@@ -182,11 +193,11 @@ extern void synchronize_quantities(struct channel_struct ** reactor_core, struct
  * First two dimension determines the reactor core.
  * The third dimension determines the atom type.
  */
-extern double ***returnTotalAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config, double**** initial_quantities){
+extern double *** returnTotalAtomQuantities(struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration, struct ProcConfig proc_config, double**** initial_quantities){
   double modified;
   double initial_reactor_core_atoms[configuration->channels_x][configuration->channels_y][11];
   
-  double ***total_proc_quantities;
+  double *** total_proc_quantities;
   total_proc_quantities = (double ***)malloc(configuration->channels_x * sizeof(double **));
   for (int i = 0; i < configuration->channels_x; i++) {
     total_proc_quantities[i] = (double **)malloc(configuration->channels_y * sizeof(double *));
@@ -205,7 +216,6 @@ extern double ***returnTotalAtomQuantities(struct channel_struct ** reactor_core
       
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
 
-        // #pragma omp parallel for default(none) firstprivate(modified, reactor_core, initial_quantities, i, j) shared(total_proc_quantities, initial_reactor_core_atoms)
         for(int k = 0; k < reactor_core[i][j].contents.fuel_assembly.num_pellets; k++){
           for(int l = 0; l < 11; l++){
             modified = reactor_core[i][j].contents.fuel_assembly.quantities[k][l] - initial_quantities[i][j][k][l];
@@ -222,7 +232,6 @@ extern double ***returnTotalAtomQuantities(struct channel_struct ** reactor_core
         total_proc_quantities[i][j][m] += initial_reactor_core_atoms[i][j][m];
       }
       
-
     }
   }
   
@@ -233,8 +242,9 @@ extern double ***returnTotalAtomQuantities(struct channel_struct ** reactor_core
 
 /*
  * After finishing the total atom quantities calculation, free the created 3d array.
+ * It is not used in the main function
  */
-extern void free3dMatrix(double ***matrix, struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration){
+extern void free3dMatrix(double *** matrix, struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration){
   for (int i = 0; i < configuration->channels_x; i++) {
     for (int j = 0; j < configuration->channels_y; j++) {
       free(matrix[i][j]);
@@ -246,8 +256,9 @@ extern void free3dMatrix(double ***matrix, struct channel_struct ** reactor_core
 
 /*
  * After finishing the total atom quantities calculation, free the created 4d array.
+ * It is not used in the main function.
  */
-extern void free4dMatrix(double ****matrix, struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration){
+extern void free4dMatrix(double **** matrix, struct channel_struct ** reactor_core, struct simulation_configuration_struct* configuration){
   for(int i = 0; i < configuration->channels_x; i++){
     for(int j = 0; j < configuration->channels_y; j++){
       if (reactor_core[i][j].type == FUEL_ASSEMBLY) {
